@@ -34,7 +34,7 @@ method handle_request {
     $0 = sprintf '%s: accepting on %s',
         $self->process_name, $self->socket;
 
-    my $sock = $self->listen->accept or last;
+    my $sock = $self->listen->accept or return;
 
     $0 = sprintf '%s: processing', $self->process_name;
 
