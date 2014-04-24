@@ -42,7 +42,7 @@ method check_secrets_access {
 }
 
 method handle_connection ($sock) {
-    my $query = $self->read_query($sock);
+    my $query = $self->read_query($sock) or return;
 
     my ($type, $address) = split ' ', $query;
 
