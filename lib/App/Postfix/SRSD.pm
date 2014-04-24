@@ -7,7 +7,31 @@ use Method::Signatures;
 use MooseX::App::Simple;
 use Text::Netstring qw(netstring_read netstring_verify netstring_decode netstring_encode);
 use TryCatch;
+use Log::Log4perl;
 use autodie ':all';
+
+my $LogConf = <<EOT;
+log4perl.rootLogger=DEBUG, Root, Screen
+
+# filter only warn and above
+log4perl.filter.MatchWarn               = Log::Log4perl::Filter::LevelRange
+log4perl.filter.MatchWarn.LevelMin      = DEBUG
+log4perl.filter.MatchWarn.AcceptOnMatch = true
+
+# log to syslog
+log4perl.appender.Root           = Log::Dispatch::Syslog
+log4perl.appender.Root.min_level = debug
+log4perl.appender.Root.ident     = postfix-srsd
+log4perl.appender.Root.facility  = daemon
+log4perl.appender.Root.layout    = Log::Log4perl::Layout::SimpleLayout
+
+# also send warn and above to the screen
+log4perl.appender.Screen        = Log::Log4perl::Appender::Screen
+log4perl.appender.Screen.Filter = MatchWarn
+log4perl.appender.Screen.layout = Log::Log4perl::Layout::SimpleLayout
+EOT
+
+Log::Log4perl::init(\$LogConf);
 
 use constant SOCKETMAP_MAX_QUERY => 1000;
 
