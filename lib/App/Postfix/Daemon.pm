@@ -2,7 +2,6 @@ package App::Postfix::Daemon;
 
 use Modern::Perl '2013';
 use MooseX::App::Role;
-use Proc::Daemon;
 use Proc::PID::File;
 use File::Basename qw(dirname basename);
 use POSIX ();
@@ -11,7 +10,7 @@ use Method::Signatures;
 option foreground => (
     is           => 'ro',
     isa          => 'Bool',
-    default      => sub { 1 },
+    default      => sub { 0 },
     documentation => q[Run in the foreground (dont deamonize)]);
 
 option pidfile => (
@@ -65,7 +64,9 @@ method drop_privileges {
     $self->log->debug('dropping privileges, user=',
         $self->user, ' group=', $self->group);
 
-    chown $self->pidfile, $self->uid, $self->gid;
+    if (-f $self->pidfile) {
+        chown $self->uid, $self->gid, $self->pidfile;
+    }
 
     $( = $self->gid;
     unless (POSIX::setgid($self->gid)) {
@@ -83,10 +84,31 @@ method drop_privileges {
     }
 }
 
+method safe_fork {
+    my $pid = fork // $self->log->logdie("fork failed: $!");
+
+    return $pid;
+}
+
 method daemonize {
     return if $self->foreground;
 
-    Proc::Daemon::Init();
+    # Proc::Daemon doesn't really work for us because it closes all the
+    # Log4perl handles, and the socket if its open already.  Just daemonize by
+    # hand an donly close STDIN, STDOUT, STDERR
+    #
+
+    my $log = $self->log;
+
+    my $pid = $self->safe_fork;
+
+    exit 0 if $pid; # exit parent
+
+    open STDIN,  '<', '/dev/null' or $log->logdie("Can't open STDIN from /dev/null: [$!]");
+    open STDOUT, '>', '/dev/null' or $log->logdie("Can't open STDOUT to /dev/null: [$!]");
+    open STDERR, '>&STDOUT'       or $log->logdie("Can't open STDERR to STDOUT: [$!]");
+
+    $log->logdie("setsid failed") if POSIX::setsid() < 0;
 
     $self->pid->touch;
 }

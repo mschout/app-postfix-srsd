@@ -8,7 +8,14 @@ use Method::Signatures;
 option socket => (
     is            => 'ro',
     isa           => 'Str',
+    required      => 1,
     documentation => q[The path to the socket file (unix:/path/to/sock.sock)]);
+
+option 'timeout' => (
+    is            => 'ro',
+    isa           => 'Str',
+    default       => sub { 5 },
+    documentation => q[Socket connect timeout (default: 5)]);
 
 has listen => (is => 'rw', isa => 'IO::Socket', lazy_build => 1);
 
@@ -28,7 +35,9 @@ before drop_privileges => sub {
     return unless $< == 0
         and ($self->has_user or $self->has_group);
 
-    chown $self->socket, $self->uid, $self->gid;
+    if ($self->is_unix_socket) {
+        chown $self->uid, $self->gid, $self->socket_path;
+    }
 };
 
 method accept {
@@ -40,6 +49,18 @@ method accept {
     $0 = sprintf '%s: processing', $self->process_name;
 
     return $sock;
+}
+
+method is_unix_socket {
+    $self->socket =~ /^unix:/ ? 1 : 0
+}
+
+method socket_path {
+    return unless $self->is_unix_socket;
+
+    (my $path = $self->socket) =~ s/^unix://;
+
+    return $path;
 }
 
 method _build_listen {
@@ -54,7 +75,7 @@ method _build_listen {
 }
 
 method _build_listen_unix {
-    (my $path = $self->socket) =~ s/^unix://;
+    my $path = $self->socket_path;
 
     if (-e $path) {
         unlink $path;
@@ -63,9 +84,9 @@ method _build_listen_unix {
     my $old_umask = umask 0111;
 
     my $sock = IO::Socket::UNIX->new(
-        Type   => SOCK_STREAM,
-        Local  => $path,
-        Listen => 32)
+        Type             => SOCK_STREAM,
+        Local            => $path,
+        Listen           => 32)
             or $self->log->logdie("Failed to create socket: $!");
 
     umask $old_umask;
@@ -83,10 +104,11 @@ method _build_listen_inet {
     my ($host, $port) = split ':', $spec;
 
     return IO::Socket::INET->new(
-        Listen    => 32,
-        LocalAddr => $host,
-        LocalPort => $port,
-        Proto     => 'tcp') or $self->log->logdie("Failed to create socket: $!");
+        Listen           => 32,
+        LocalAddr        => $host,
+        LocalPort        => $port,
+        Proto            => 'tcp')
+            or $self->log->logdie("Failed to create socket: $!");
 }
 
 1;

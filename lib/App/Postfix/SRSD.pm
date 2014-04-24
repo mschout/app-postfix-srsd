@@ -36,7 +36,8 @@ Log::Log4perl::init(\$LogConf);
 use constant SOCKETMAP_MAX_QUERY => 1000;
 
 with qw(App::Postfix::Daemon::Socket
-        App::Postfix::Daemon::Prefork);
+        App::Postfix::Daemon::Prefork
+        MooseX::Log::Log4perl);
 
 option secrets => (
     is           => 'ro',
@@ -49,6 +50,13 @@ option domain => (
     isa           => 'Str',
     required      => 1,
     documentation => q[The domain to rewrite SRS addresses into]);
+
+option 'read-timeout' => (
+    is            => 'ro',
+    isa           => 'Str',
+    default       => sub { 2 },
+    reader        => 'read_timeout',
+    documentation => q[Socket read/write timeout timeout (default: 2)]);
 
 has srs => (is => 'ro', isa => 'Mail::SRS', lazy_build => 1);
 
@@ -69,25 +77,42 @@ method check_secrets_access {
 method handle_request {
     my $sock = $self->accept or return;
 
-    my $query = $self->read_query($sock) or return;
+    while (1) {
+        my $query = $self->read_query($sock) or last;
 
-    my ($type, $address) = split ' ', $query;
+        my ($type, $address) = split ' ', $query;
 
-    given ($type) {
-        when ('srsencoder') {
-            $self->srs_forward($sock, $address);
-        }
-        when ('srsdecoder') {
-            $self->srs_reverse($sock, $address);
-        }
-        default {
-            $self->send_reply($sock, "PERM invalid query type $type");
+        given ($type) {
+            when ('srsencoder') {
+                $self->srs_forward($sock, $address);
+            }
+            when ('srsdecoder') {
+                $self->srs_reverse($sock, $address);
+            }
+            default {
+                $self->send_reply($sock, "PERM invalid query type $type");
+            }
         }
     }
+
+    $sock->shutdown(2);
+    $sock->close;
 }
 
 method read_query($sock) {
-    my $ns = netstring_read($sock);
+    my $ns;
+
+    local $SIG{ALRM} = sub { $self->log->logdie("read timeout") };
+
+    my $prev_alarm = alarm $self->read_timeout;
+
+    try {
+        $ns = netstring_read($sock);
+    }
+
+    alarm $prev_alarm;
+
+    return unless defined $ns and length $ns > 0;
 
     if (netstring_verify($ns)) {
         return netstring_decode($ns);
@@ -99,12 +124,22 @@ method read_query($sock) {
 method send_reply ($sock, $string) {
     $string = netstring_encode($string);
 
-    if (length $string > SOCKETMAP_MAX_QUERY) {
-        $sock->print(netstring_encode("PERM response string too long"));
+    local $SIG{ALRM} = sub { $self->log->logdie("write timeout") };
+
+    my $prev_alarm = alarm $self->read_timeout;
+
+    try {
+        if (length $string > SOCKETMAP_MAX_QUERY) {
+            $sock->print(netstring_encode("PERM response string too long"));
+        }
+        else {
+            $sock->print($string);
+        }
     }
-    else {
-        $sock->print($string);
-    }
+
+    alarm $prev_alarm;
+
+    return;
 }
 
 method srs_forward ($sock, $address) {

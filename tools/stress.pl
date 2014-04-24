@@ -25,9 +25,9 @@ for my $req (@forward) {
 $pm->wait_all_children;
 
 sub process {
-    my ($type, $email) = @_;
+    my ($type, $email, $sock) = @_;
 
-    my $sock = IO::Socket::UNIX->new(Type => SOCK_STREAM, Peer => $socket) or die "socket: $!";
+    $sock //= IO::Socket::UNIX->new(Type => SOCK_STREAM, Peer => $socket) or die "socket: $!";
 
     print $sock netstring_encode("$type $email");
     my $reply = netstring_decode(netstring_read($sock));
@@ -35,11 +35,14 @@ sub process {
 
     say "$email -> $reply" if $verbose;
 
-    return unless defined $reply and length $reply > 0;
-
-    if ($type eq 'srsencoder') {
-        process(srsdecoder => $reply);
+    if (defined $reply and length $reply > 0) {
+        if ($type eq 'srsencoder') {
+            process(srsdecoder => $reply, $sock);
+        }
     }
+
+    $sock->shutdown(2);
+    $sock->close;
 }
 
 
