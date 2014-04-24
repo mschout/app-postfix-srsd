@@ -5,8 +5,6 @@ use MooseX::App::Role;
 use IO::Socket;
 use Method::Signatures;
 
-with qw(App::Postfix::Daemon);
-
 option socket => (
     is            => 'ro',
     isa           => 'Str',
@@ -14,11 +12,14 @@ option socket => (
 
 has listen => (is => 'rw', isa => 'IO::Socket', lazy_build => 1);
 
+with qw(MooseX::Log::Log4perl);
+
 after check_running => sub {
     my $self = shift;
 
     # create the socket.
-    my $sock = $self->listen or die "failed to create socket: $!";
+    my $sock = $self->listen
+        or $self->log->logdie("failed to create socket: $!");
 };
 
 before drop_privileges => sub {
@@ -30,7 +31,7 @@ before drop_privileges => sub {
     chown $self->socket, $self->uid, $self->gid;
 };
 
-method handle_request {
+method accept {
     $0 = sprintf '%s: accepting on %s',
         $self->process_name, $self->socket;
 
@@ -38,7 +39,7 @@ method handle_request {
 
     $0 = sprintf '%s: processing', $self->process_name;
 
-    $self->handle_connection($sock);
+    return $sock;
 }
 
 method _build_listen {
@@ -64,7 +65,8 @@ method _build_listen_unix {
     my $sock = IO::Socket::UNIX->new(
         Type   => SOCK_STREAM,
         Local  => $path,
-        Listen => 32) or die "Failed to create socket: $!";
+        Listen => 32)
+            or $self->log->logdie("Failed to create socket: $!");
 
     umask $old_umask;
 
@@ -75,7 +77,7 @@ method _build_listen_inet {
     (my $spec = $self->socket) =~ s/^inet://;
 
     unless ($spec =~ /^[0-9a-z-]+:\d+$/) {
-        die "Invalid socket specification: ", $self->socket;
+        $self->log->logdie("Invalid socket specification: ", $self->socket);
     }
 
     my ($host, $port) = split ':', $spec;
@@ -84,7 +86,7 @@ method _build_listen_inet {
         Listen    => 32,
         LocalAddr => $host,
         LocalPort => $port,
-        Proto     => 'tcp') or die "Failed to create socket: $!";
+        Proto     => 'tcp') or $self->log->logdie("Failed to create socket: $!");
 }
 
 1;

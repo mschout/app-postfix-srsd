@@ -1,6 +1,12 @@
 package App::Postfix::Daemon::Role::Workers;
 
-use Moose::Role;
+use MooseX::App::Role;
+
+option workers => (
+    is            => 'ro',
+    isa           => 'Int',
+    lazy_build    => 1,
+    documentation => q[Number of worker processes]);
 
 # build workers arg. default = number of cpus.
 sub _build_workers {

@@ -31,17 +31,20 @@ has srs => (is => 'ro', isa => 'Mail::SRS', lazy_build => 1);
 after drop_privileges => sub {
     my $self = shift;
 
-    warn "checking secret access...\n";
+    $self->log->debug("checking secret access");
+
     $self->check_secrets_access;
 };
 
 method check_secrets_access {
     unless (-r $self->secrets) {
-        die "Can't read secrets file ", $self->secrets, "\n";
+        $self->log->logdie("Can't read secrets file", $self->secrets);
     }
 }
 
-method handle_connection ($sock) {
+method handle_request {
+    my $sock = $self->accept or return;
+
     my $query = $self->read_query($sock) or return;
 
     my ($type, $address) = split ' ', $query;
@@ -124,7 +127,7 @@ method _load_secrets {
         push @secrets, $line;
     }
 
-    die "secrets file is empty!" unless @secrets;
+    $self->log->logdie("secrets file is empty!") unless @secrets;
 
     return \@secrets;
 }

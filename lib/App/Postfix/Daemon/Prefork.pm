@@ -4,14 +4,6 @@ use MooseX::App::Role;
 use Method::Signatures;
 use Parallel::Prefork;
 
-with qw(App::Postfix::Daemon App::Postfix::Daemon::Role::Workers);
-
-option workers => (
-    is            => 'ro',
-    isa           => 'Int',
-    lazy_build    => 1,
-    documentation => q[Number of worker processes]);
-
 option 'requests-per-child' => (
     is            => 'ro',
     isa           => 'Int',
@@ -19,7 +11,9 @@ option 'requests-per-child' => (
     reader        => 'requests_per_child',
     documentation => q[Max number or requests per child]);
 
-requires qw(handle_request);
+with qw(MooseX::Log::Log4perl
+        App::Postfix::Daemon
+        App::Postfix::Daemon::Role::Workers);
 
 method main_loop {
     my $pm = Parallel::Prefork->new(
@@ -28,10 +22,12 @@ method main_loop {
             TERM => 'TERM',
             HUP  => 'TERM'
         }
-    );
+    ) or $self->log->logdie("Error creating PreFork Manager");
 
     while ($pm->signal_received ne 'TERM') {
         $pm->start and next;
+
+        $self->log->debug("worker $$ launched");
 
         my $reqs_remaining = $self->requests_per_child;
 
@@ -40,6 +36,8 @@ method main_loop {
         while ($reqs_remaining-- > 0) {
             $self->handle_request;
         }
+
+        $self->log->debug("worker $$ exiting");
 
         $pm->finish;
     }

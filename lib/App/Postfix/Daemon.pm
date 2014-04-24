@@ -38,7 +38,9 @@ has process_name => (is => 'ro', isa => 'Str', lazy_build => 1);
 
 has pid => (is => 'ro', isa => 'Proc::PID::File', lazy_build => 1);
 
-requires qw(main_loop);
+requires qw(main_loop handle_request);
+
+with qw(MooseX::Log::Log4perl);
 
 method run {
     $self->check_running;
@@ -51,7 +53,7 @@ method run {
 }
 
 method check_running {
-    die "already running!\n" if $self->pid->alive;
+    $self->log->logdie("already running!") if $self->pid->alive;
 
     $self->pid->touch;
 }
@@ -60,21 +62,24 @@ method drop_privileges {
     return unless $< == 0 # pointless without superuser privs.
         and ($self->has_user or $self->has_group);
 
+    $self->log->debug('dropping privileges, user=',
+        $self->user, ' group=', $self->group);
+
     chown $self->pidfile, $self->uid, $self->gid;
 
     $( = $self->gid;
     unless (POSIX::setgid($self->gid)) {
-        die "failed to set gid: $!";
+        $self->log->logdie("failed to set gid: $!");
     }
 
     $< = $> = $self->uid;
 
     if ($< != $self->uid) {
-        die "failed to become uid ", $self->uid;
+        $self->log->logdie("failed to become uid ", $self->uid);
     }
 
     unless (POSIX::setuid($self->uid)) {
-        die "couldn't become uid ", $self->uid, ": $!";
+        $self->log->logdie("couldn't become uid ", $self->uid, ": $!");
     }
 }
 
