@@ -30,10 +30,9 @@ before drop_privileges => sub {
     chown $self->socket, $self->uid, $self->gid;
 };
 
-# XXX this depends on prefork.. ugh.. need generic way to get request number..
-method handle_request ($num) {
-    $0 = sprintf '%s: accepting on %s (%d/%d)',
-        $self->process_name, $self->socket, $num, $self->requests_per_child;
+method handle_request {
+    $0 = sprintf '%s: accepting on %s',
+        $self->process_name, $self->socket;
 
     my $sock = $self->listen->accept or last;
 
