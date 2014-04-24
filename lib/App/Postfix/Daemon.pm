@@ -51,12 +51,6 @@ method run {
 }
 
 method check_running {
-    my %args;
-    if ($self->has_pidfile) {
-        ($args{name} = basename($self->pidfile)) =~ s/\.pid$//;;
-        $args{dir} = dirname($self->pidfile);
-    }
-
     die "already running!\n" if $self->pid->alive;
 
     $self->pid->touch;
