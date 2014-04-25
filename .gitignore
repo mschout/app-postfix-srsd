@@ -1,5 +1,6 @@
 /App-Postfix-SRSD-*
 /releases
+/local
 *.pid
 *.sock
 *.secrets
