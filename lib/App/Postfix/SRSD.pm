@@ -15,14 +15,14 @@ log4perl.rootLogger=DEBUG, Root, Screen
 
 # filter only warn and above
 log4perl.filter.MatchWarn               = Log::Log4perl::Filter::LevelRange
-log4perl.filter.MatchWarn.LevelMin      = DEBUG
+log4perl.filter.MatchWarn.LevelMin      = WARN
 log4perl.filter.MatchWarn.AcceptOnMatch = true
 
 # log to syslog
 log4perl.appender.Root           = Log::Dispatch::Syslog
 log4perl.appender.Root.min_level = debug
 log4perl.appender.Root.ident     = postfix-srsd
-log4perl.appender.Root.facility  = daemon
+log4perl.appender.Root.facility  = mail
 log4perl.appender.Root.layout    = Log::Log4perl::Layout::SimpleLayout
 
 # also send warn and above to the screen
