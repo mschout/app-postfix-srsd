@@ -82,6 +82,10 @@ method handle_request {
 
         my ($type, $address) = split ' ', $query;
 
+        unless (defined $address and length $address) {
+            $self->send_reply($sock, 'NOTFOUND ');
+        }
+
         given ($type) {
             when ('srsencoder') {
                 $self->srs_forward($sock, $address);
@@ -144,8 +148,19 @@ method send_reply ($sock, $string) {
 
 method srs_forward ($sock, $address) {
     try {
-        my $forward = $self->srs->forward($address, $self->domain);
-        $self->send_reply($sock, "OK $forward");
+        my $domain = $self->domain;
+
+        if (index($address, '@') == -1) {
+            return $self->send_reply($sock, 'NOTFOUND address does not contain domain');
+        }
+        elsif (my $forward = $self->srs->forward($address, $self->domain)) {
+            $self->log->info("rewrite $address -> $forward")
+                unless ($address eq $forward);
+            $self->send_reply($sock, "OK $forward");
+        }
+        else {
+            $self->send_reply($sock, "PERM srs forwarding failed");
+        }
     }
     catch ($e) {
         $self->send_reply($sock, "PERM $e");
@@ -154,8 +169,25 @@ method srs_forward ($sock, $address) {
 
 method srs_reverse ($sock, $address) {
     try {
-        my $rev = $self->srs->reverse($address) // $address;
-        $self->send_reply($sock, "OK $rev");
+        my $domain = $self->domain;
+
+        unless ($address =~ /^SRS0[-+=]/) {
+            return $self->send_reply($sock, 'NOTFOUND address is not SRS encoded');
+
+        }
+        elsif (index($address, '@') == -1) {
+            return $self->send_reply($sock, 'NOTFOUND address does not contain domain');
+        }
+        elsif ($address !~ /\@$domain$/) {
+            return $self->send_reply($sock, "NOTFOUND External domains are ignored");
+        }
+        elsif (my $rev = $self->srs->reverse($address)) {
+            $self->log->info("rewrite $address -> $rev");
+            $self->send_reply($sock, "OK $rev");
+        }
+        else {
+            $self->send_reply($sock, "NOTFOUND invalid srs email");
+        }
     }
     catch ($e) {
         $self->send_reply($sock, "PERM $e");
