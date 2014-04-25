@@ -4,11 +4,11 @@ use MooseX::App::Role;
 use Method::Signatures;
 use Parallel::Prefork;
 
-option 'requests-per-child' => (
+option 'requests_per_child' => (
     is            => 'ro',
     isa           => 'Int',
     default       => sub { 100 },
-    reader        => 'requests_per_child',
+    cmd_flag      => 'requests-per-child',
     documentation => q[Max number or requests per child]);
 
 with qw(MooseX::Log::Log4perl

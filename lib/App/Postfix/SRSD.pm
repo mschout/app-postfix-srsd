@@ -51,11 +51,11 @@ option domain => (
     required      => 1,
     documentation => q[The domain to rewrite SRS addresses into]);
 
-option 'read-timeout' => (
+option 'read_timeout' => (
     is            => 'ro',
     isa           => 'Str',
     default       => sub { 2 },
-    reader        => 'read_timeout',
+    cmd_flag      => 'read-timeout',
     documentation => q[Socket read/write timeout timeout (default: 2)]);
 
 has srs => (is => 'ro', isa => 'Mail::SRS', lazy_build => 1);
