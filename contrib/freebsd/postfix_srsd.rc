@@ -1,0 +1,78 @@
+#!/usr/local/bin/bash
+# note: perlbrew requires bash
+#
+# PROVIDE: postfix-srsd
+# REQUIRE: LOGIN postfix
+# KEYWORD: shutdown
+
+# Add the following lines to /etc/rc.conf to enable `postfix-srsd':
+#
+# postfix_srsd_enable="YES"
+#
+
+hostname=$(hostname)
+
+. /etc/rc.subr
+
+name="postfix_srsd"
+rcvar="postfix_srsd_enable"
+
+load_rc_config "$name"
+
+: ${postfix_srsd_enable:="NO"}
+: ${postfix_srsd_user:="nobody"}
+: ${postfix_srsd_group:="nobody"}
+: ${postfix_srsd_pidfile:="/var/run/postfix-srsd.pid"}
+: ${postfix_srsd_socket:="/var/run/postfix-srsd.sock"}
+: ${postfix_srsd_secrets:="/usr/local/etc/postfix/postfix-srsd.secrets"}
+: ${postfix_srsd_workers:="3"}
+: ${postfix_srsd_perlbrew:="5.16.3-srsd"}
+: ${postfix_srsd_perlbrew_user:="$postfix_srsd_user"}
+
+if [ -z "$postfix_srsd_domain" ]; then
+    postfix_srsd_domain=$(hostname)
+fi
+
+pidfile=${postfix_srsd_pidfile}
+procname="perl"
+required_files="$postfix_srsd_secrets"
+start_cmd="${name}_start"
+
+die() {
+    echo $*
+    exit 1
+}
+
+postfix_srsd_start() {
+    eval "perlbrew_home=~$postfix_srsd_perlbrew_user/perl5/perlbrew"
+
+    if [ ! -d "$perlbrew_home" ]; then
+        die "perlbrew home $perlbrew_home not found"
+    fi
+
+    # workaround for case where SHELL is set wrong if called from env -i 
+    # as "service" script does
+    if [ "$SHELL" != "/usr/local/bin/bash" ] && [ ! -z "$BASH_VERSION" ]; then
+        SHELL=/usr/local/bin/bash
+    fi
+
+    . $perlbrew_home/etc/bashrc
+
+    perlbrew use $postfix_srsd_perlbrew || exit 1
+
+    if [ -z "$PERLBREW_PERL" ]; then
+        die "Failed to initialize perlbrew"
+    fi
+
+    echo "Starting postfix-srsd."
+
+    postfix-srsd --socket unix:$postfix_srsd_socket \
+        --user $postfix_srsd_user \
+        --group $postfix_srsd_group \
+        --domain $postfix_srsd_domain \
+        --secrets $postfix_srsd_secrets \
+        --workers $postfix_srsd_workers \
+        --pidfile $postfix_srsd_pidfile
+}
+
+run_rc_command "$1"
