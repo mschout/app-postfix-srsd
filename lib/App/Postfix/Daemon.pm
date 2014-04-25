@@ -73,7 +73,7 @@ method drop_privileges {
         $self->log->logdie("failed to set gid: $!");
     }
 
-    $< = $> = $self->uid;
+    $> = $< = $self->uid;
 
     if ($< != $self->uid) {
         $self->log->logdie("failed to become uid ", $self->uid);
