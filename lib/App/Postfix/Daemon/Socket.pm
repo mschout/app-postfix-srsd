@@ -86,7 +86,7 @@ method _build_listen_unix {
     my $sock = IO::Socket::UNIX->new(
         Type             => SOCK_STREAM,
         Local            => $path,
-        Listen           => 32,
+        Listen           => SOMAXCONN,
         Blocking         => 0)
             or $self->log->logdie("Failed to create socket: $!");
 
@@ -105,7 +105,7 @@ method _build_listen_inet {
     my ($host, $port) = split ':', $spec;
 
     return IO::Socket::INET->new(
-        Listen           => 32,
+        Listen           => SOMAXCONN,
         LocalAddr        => $host,
         LocalPort        => $port,
         Proto            => 'tcp',
