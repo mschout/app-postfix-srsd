@@ -86,7 +86,8 @@ method _build_listen_unix {
     my $sock = IO::Socket::UNIX->new(
         Type             => SOCK_STREAM,
         Local            => $path,
-        Listen           => 32)
+        Listen           => 32,
+        Blocking         => 0)
             or $self->log->logdie("Failed to create socket: $!");
 
     umask $old_umask;
@@ -107,7 +108,8 @@ method _build_listen_inet {
         Listen           => 32,
         LocalAddr        => $host,
         LocalPort        => $port,
-        Proto            => 'tcp')
+        Proto            => 'tcp',
+        Blocking         => 0)
             or $self->log->logdie("Failed to create socket: $!");
 }
 

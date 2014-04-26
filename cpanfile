@@ -1,5 +1,6 @@
 requires 'perl', '5.16.3';
 requires 'autodie', '2.25';
+requires 'EV', '4.17';
 requires 'ExtUtils::MakeMaker', '6.96';
 requires 'File::Basename', '2.84';
 requires 'IO::Socket', '1.34';

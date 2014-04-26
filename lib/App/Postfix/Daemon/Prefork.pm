@@ -4,20 +4,13 @@ use MooseX::App::Role;
 use Method::Signatures;
 use Parallel::Prefork;
 
-option 'requests_per_child' => (
-    is            => 'ro',
-    isa           => 'Int',
-    default       => sub { 100 },
-    cmd_flag      => 'requests-per-child',
-    documentation => q[Max number or requests per child]);
-
 with qw(MooseX::Log::Log4perl
         App::Postfix::Daemon
         App::Postfix::Daemon::Role::Workers);
 
-requires qw(handle_request);
+around main_loop => sub {
+    my ($orig, $self) = splice @_, 0, 2;
 
-method main_loop {
     my $pm = Parallel::Prefork->new(
         max_workers  => $self->workers,
         trap_signals => {
@@ -31,13 +24,7 @@ method main_loop {
 
         $self->log->debug("worker $$ launched");
 
-        my $reqs_remaining = $self->requests_per_child;
-
-        $SIG{TERM} = sub { $reqs_remaining = 0 };
-
-        while ($reqs_remaining-- > 0) {
-            $self->handle_request;
-        }
+        $self->$orig(@_);
 
         $self->log->debug("worker $$ exiting");
 
@@ -45,6 +32,6 @@ method main_loop {
     }
 
     $pm->wait_all_children;
-}
+};
 
 1;

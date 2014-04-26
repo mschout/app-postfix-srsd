@@ -7,7 +7,9 @@ use Method::Signatures;
 use MooseX::App::Simple;
 use Text::Netstring qw(netstring_read netstring_verify netstring_decode netstring_encode);
 use TryCatch;
+use Errno qw(EAGAIN);
 use Log::Log4perl;
+use EV;
 use autodie ':all';
 
 my $LogConf = <<EOT;
@@ -51,14 +53,9 @@ option domain => (
     required      => 1,
     documentation => q[The domain to rewrite SRS addresses into]);
 
-option 'read_timeout' => (
-    is            => 'ro',
-    isa           => 'Str',
-    default       => sub { 2 },
-    cmd_flag      => 'read-timeout',
-    documentation => q[Socket read/write timeout timeout (default: 2)]);
-
 has srs => (is => 'ro', isa => 'Mail::SRS', lazy_build => 1);
+
+my %Sockets;
 
 after drop_privileges => sub {
     my $self = shift;
@@ -74,47 +71,84 @@ method check_secrets_access {
     }
 }
 
-method handle_request {
-    my $sock = $self->accept or return;
+method main_loop {
+    my $server = $self->listen or return;
 
-    while (1) {
-        my $query = $self->read_query($sock) or last;
+    my $w = EV::io $server, EV::READ, $self->_accept_handler;
 
-        my ($type, $address) = split ' ', $query;
+    EV::loop;
+}
 
-        unless (defined $address and length $address) {
-            $self->send_reply($sock, 'NOTFOUND ');
+method _accept_handler {
+    sub {
+        my $w = shift;
+
+        if (my $socket = $w->fh->accept) {
+            $self->log->debug("accepted connection");
+
+            $Sockets{$socket} = EV::io $socket, EV::READ, $self->_read_handler;
+        }
+        elsif ($! != EAGAIN) {
+            $self->log->logdie("$$ accept failed: $!");
+        }
+    };
+}
+
+method close_socket ($socket) {
+    $socket->shutdown(2);
+    $socket->close;
+
+    delete $Sockets{$socket};
+
+    undef $socket;
+}
+
+method _read_handler {
+    sub {
+        my $w = shift;
+
+        my $socket = $w->fh;
+
+        if ($socket->eof) {
+            $self->close_socket($socket);
+
+            undef $w;
+
+            return;
         }
 
-        given ($type) {
-            when ('srsencoder') {
-                $self->srs_forward($sock, $address);
-            }
-            when ('srsdecoder') {
-                $self->srs_reverse($sock, $address);
-            }
-            default {
-                $self->send_reply($sock, "PERM invalid query type $type");
-            }
-        }
+        $self->handle_request($socket);
+    };
+}
+
+method handle_request ($sock) {
+    my $query = $self->read_query($sock) or return 0;
+
+    my ($type, $address) = split ' ', $query;
+
+    unless (defined $address and length $address) {
+        return $self->send_reply($sock, 'NOTFOUND ');
     }
 
-    $sock->shutdown(2);
-    $sock->close;
+    given ($type) {
+        when ('srsencoder') {
+            $self->srs_forward($sock, $address);
+        }
+        when ('srsdecoder') {
+            $self->srs_reverse($sock, $address);
+        }
+        default {
+            $self->send_reply($sock, "PERM invalid query type $type");
+        }
+    }
 }
 
 method read_query($sock) {
     my $ns;
 
-    local $SIG{ALRM} = sub { $self->log->logdie("read timeout") };
-
-    my $prev_alarm = alarm $self->read_timeout;
-
     try {
         $ns = netstring_read($sock);
     }
-
-    alarm $prev_alarm;
 
     return unless defined $ns and length $ns > 0;
 
@@ -128,10 +162,6 @@ method read_query($sock) {
 method send_reply ($sock, $string) {
     $string = netstring_encode($string);
 
-    local $SIG{ALRM} = sub { $self->log->logdie("write timeout") };
-
-    my $prev_alarm = alarm $self->read_timeout;
-
     try {
         if (length $string > SOCKETMAP_MAX_QUERY) {
             $sock->print(netstring_encode("PERM response string too long"));
@@ -140,8 +170,6 @@ method send_reply ($sock, $string) {
             $sock->print($string);
         }
     }
-
-    alarm $prev_alarm;
 
     return;
 }
