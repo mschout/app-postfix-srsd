@@ -4,6 +4,7 @@ requires 'EV', '4.17';
 requires 'ExtUtils::MakeMaker', '6.96';
 requires 'File::Basename', '2.84';
 requires 'IO::Socket', '1.34';
+requires 'IPC::System::Simple', '1.25';
 requires 'Log::Dispatch::Syslog', '2.41';
 requires 'Log::Log4perl', '1.43';
 requires 'Mail::SRS', '0.31';
