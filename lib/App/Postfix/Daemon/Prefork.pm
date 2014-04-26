@@ -15,6 +15,8 @@ with qw(MooseX::Log::Log4perl
         App::Postfix::Daemon
         App::Postfix::Daemon::Role::Workers);
 
+requires qw(handle_request);
+
 method main_loop {
     my $pm = Parallel::Prefork->new(
         max_workers  => $self->workers,

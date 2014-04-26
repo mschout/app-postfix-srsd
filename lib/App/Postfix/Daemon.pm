@@ -37,7 +37,7 @@ has process_name => (is => 'ro', isa => 'Str', lazy_build => 1);
 
 has pid => (is => 'ro', isa => 'Proc::PID::File', lazy_build => 1);
 
-requires qw(main_loop handle_request);
+requires qw(main_loop);
 
 with qw(MooseX::Log::Log4perl);
 
