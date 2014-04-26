@@ -11,7 +11,7 @@ option foreground => (
     is           => 'ro',
     isa          => 'Bool',
     default      => sub { 0 },
-    documentation => q[Run in the foreground (dont deamonize)]);
+    documentation => q[Run in the foreground (don't deamonize)]);
 
 option pidfile => (
     is           => 'ro',
