@@ -44,9 +44,9 @@ with qw(MooseX::Log::Log4perl);
 method run {
     $self->check_running;
 
-    $self->drop_privileges;
-
     $self->daemonize;
+
+    $self->drop_privileges;
 
     $self->main_loop;
 }
