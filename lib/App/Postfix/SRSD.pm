@@ -191,7 +191,7 @@ method srs_forward ($sock, $address) {
         }
     }
     catch ($e) {
-        $self->send_reply($sock, "PERM $e");
+        $self->send_reply($sock, "NOTFOUND $e");
     }
 }
 
@@ -218,7 +218,7 @@ method srs_reverse ($sock, $address) {
         }
     }
     catch ($e) {
-        $self->send_reply($sock, "PERM $e");
+        $self->send_reply($sock, "NOTFOUND $e");
     }
 }
 
