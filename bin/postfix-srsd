@@ -1,7 +1,0 @@
-#!/usr/bin/env perl
-#
-# PODNAME: postfix-srsd
-
-use App::Postfix::SRSD;
-
-App::Postfix::SRSD->new_with_options(@ARGV)->run;

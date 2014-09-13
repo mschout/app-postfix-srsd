@@ -1,0 +1,7 @@
+ChangeLog for postfix-srsd
+
+0.02  2014-09-26
+    - migrate to C++, requires Boost, libsrs2xx
+
+0.01  2014-04-28
+    - initial release
