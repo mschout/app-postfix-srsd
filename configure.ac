@@ -1,5 +1,5 @@
 AC_PREREQ(2.52)
-AC_INIT([postfix-srsd], 0.10)
+AC_INIT([postfix-srsd], 0.11)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE
 AC_PROG_CXX
