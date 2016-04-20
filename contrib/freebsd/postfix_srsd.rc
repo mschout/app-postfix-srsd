@@ -1,5 +1,4 @@
-#!/usr/local/bin/bash
-# note: perlbrew requires bash
+#!/bin/sh
 #
 # PROVIDE: postfix-srsd
 # REQUIRE: LOGIN postfix
