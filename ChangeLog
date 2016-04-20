@@ -1,6 +1,10 @@
 ChangeLog for postfix-srsd
 
-0.02  2014-09-26
+0.11  2016-04-20
+    - add log messages in exception handlers
+    - fix FreeBSD rc script
+
+0.10  2014-09-26
     - migrate to C++, requires Boost, libsrs2xx
 
 0.01  2014-04-28
