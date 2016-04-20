@@ -75,6 +75,7 @@ void srsd_server::forward(int socket, const string& address)
         }
     }
     catch (const std::exception& e) {
+        std::clog << "forward failed: " << e.what() << std::endl;
         return send_reply(socket, string("NOTFOUND ") + e.what());
     }
 }
@@ -102,6 +103,7 @@ void srsd_server::reverse(int socket, const string& address)
         }
     }
     catch (const std::exception& e) {
+        std::clog << "reverse failed: " << e.what() << std::endl;
         return send_reply(socket, string("NOTFOUND ") + e.what());
     }
 }
