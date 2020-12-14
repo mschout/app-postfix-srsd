@@ -9,8 +9,6 @@
 
 using namespace std;
 
-ostream log(clog.rdbuf());
-
 // creates a syslog ostream
 // e.g.: slogstream slog("ident", LOG_LOCAL0, LOG_INFO);
 // slog << "your message here << std::endl;
